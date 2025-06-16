@@ -45,7 +45,7 @@ git init
 git add default.xml
 git commit -m "add manifest"
 
-三、配置 HTTP 服务器发布 Repo 仓库
+三、配置 HTTP 服务器发布 Repo 仓库===》参考nginx的http服务器搭建
 1. 将仓库拷贝到 Web 目录
 sudo mkdir -p /var/www/html/repo
 sudo cp -r /home/repo_src/.repo/repo/* /var/www/html/repo/

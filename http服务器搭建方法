@@ -1,0 +1,73 @@
+为什么要配置 HTTP 服务器
+✅ 1. repo 通过 HTTP 下载 manifest 仓库
+当你运行以下命令时：
+repo init -u http://<server-ip>/repo/.repo/manifests.git
+    repo 工具会尝试访问你提供的 URL，通过 HTTP 下载 manifest 仓库（本质是一个 Git 仓库）。
+    如果你不提供 HTTP 服务，那么客户端根本无法从你的服务器获取 manifest，也就无法继续同步源码。
+
+ 2. 多个仓库通过统一地址访问
+    repo 使用 manifest 描述各个 Git 仓库路径和 URL，推荐的 fetch 方式是 HTTP（或 HTTPS），因为：
+        通用性强（无须 SSH 密钥配置）
+        方便局域网内多人同步
+        不需要单独开放 Git 协议端口（9418）
+manifest 示例：
+<remote name="origin" fetch="http://192.168.1.100/repo/" />   
+
+
+3. 兼容 Git 协议限制和防火墙
+    Git 原生协议（git://）使用 9418 端口，很多公司/防火墙会屏蔽这个端口；
+    HTTP/HTTPS（80/443）是标准端口，几乎无阻挡，更适合企业/内网使用。
+
+总结：
+搭建 HTTP 服务器的目的，是为了 让局域网内其他开发者的 repo 命令可以通过标准 HTTP 方式访问你这台机器上的 Git 仓库和 manifest 文件，实现源码的统一管理与同步。
+
+
+
+
+二、Nginx 搭建与配置
+✅ 1. 安装 Nginx
+Ubuntu/Debian：
+sudo apt update
+sudo apt install nginx -y
+
+2. 启动 Nginx 并设置开机自启
+
+sudo systemctl start nginx
+sudo systemctl enable nginx
+
+
+三、准备源码目录
+✅ 1. 创建发布目录
+假设你将源码放到 /opt/repo_share：
+sudo mkdir -p /opt/repo_share
+sudo cp -r /home/your_user/android_src/* /opt/repo_share/
+
+建议将 .repo/manifests 转换为 bare 仓库（repo 要求）：
+cd /home/your_user/android_src/.repo
+git clone --bare manifests /opt/repo_share/.repo/manifests.git
+
+
+ 四、配置 Nginx 作为静态服务器
+✅ 1. 编辑配置文件
+sudo nano /etc/nginx/sites-available/repo
+添加如下内容：
+server {
+    listen 80;
+    server_name _;
+    location /repo/ {
+        alias /opt/repo_share/;
+        autoindex on;  # 开启目录浏览
+    }
+}
+
+✅ 2. 启用配置（Ubuntu 系统特有）
+sudo ln -s /etc/nginx/sites-available/repo /etc/nginx/sites-enabled/
+
+✅ 3. 检查配置是否正确
+sudo nginx -t
+成功会提示：
+syntax is ok
+test is successful
+
+✅ 4. 重启 Nginx 服务
+sudo systemctl restart nginx
