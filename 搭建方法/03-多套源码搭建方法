@@ -1,0 +1,103 @@
+如果你要通过 同一台 Nginx HTTP 服务器 来提供 多套 Android 源码，可以使用多路径或子域名来进行区分。
+下面提供两种通用方式，推荐使用方式一，简单直接。
+
+
+方式一：通过路径进行区分（推荐）
+📁 目录结构示意：
+
+假设你有三套 Android 源码：
+
+/opt/repo_share/
+├── android_11/
+├── android_12/
+└── android_13/
+
+每个子目录里是完整的 Android 源码及 .repo/manifests.git 仓库：
+
+/opt/repo_share/android_11/
+    └── .repo/manifests.git
+    └── platform/
+    └── device/
+    └── ...
+
+/opt/repo_share/android_12/
+...
+
+🌐 修改 Nginx 配置：
+
+server {
+    listen 80;
+    server_name _;
+
+    location /android_11/ {
+        alias /opt/repo_share/android_11/;
+        autoindex on;
+    }
+
+    location /android_12/ {
+        alias /opt/repo_share/android_12/;
+        autoindex on;
+    }
+
+    location /android_13/ {
+        alias /opt/repo_share/android_13/;
+        autoindex on;
+    }
+}
+
+重启 Nginx：
+sudo nginx -t
+sudo systemctl restart nginx
+
+🧪 客户端使用时示例：
+# 下载 android_11
+repo init -u http://<server-ip>/android_11/.repo/manifests.git
+# 下载 android_12
+repo init -u http://<server-ip>/android_12/.repo/manifests.git
+# 下载 android_13
+repo init -u http://<server-ip>/android_13/.repo/manifests.git
+
+
+
+
+
+
+
+方式二：通过子域名区分（需 DNS 配置）
+如果你有内网 DNS 或使用 hosts 文件，可以：
+
+server {
+    listen 80;
+    server_name android11.local;
+    location / {
+        alias /opt/repo_share/android_11/;
+        autoindex on;
+    }
+}
+
+server {
+    listen 80;
+    server_name android12.local;
+    location / {
+        alias /opt/repo_share/android_12/;
+        autoindex on;
+    }
+}
+
+然后客户端添加 /etc/hosts：
+192.168.1.100 android11.local
+192.168.1.100 android12.local
+
+客户端访问：
+repo init -u http://android11.local/.repo/manifests.git
+
+📝 注意事项
+    每个目录的 .repo/manifests.git 一定是 bare 仓库
+git clone --bare manifests manifests.git
+
+建议每套代码使用不同路径，如：
+    /repo/android_11/
+    /repo/android_12/
+
+每套 manifest 的 default.xml 中 fetch 路径要正确，例如：
+<remote name="origin" fetch="." />
